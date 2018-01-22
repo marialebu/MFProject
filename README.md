@@ -9,8 +9,9 @@ Se espera que en el futuro se pueda desarrollar un aplicativo más avanzado que 
 
 ## Realizar una predicción: 
 1. Abra el programa y haga clic en el botón de abrir archivo, aparecerá un diálogo donde se debe cargar un archivo .csv. Procure que los eventos que aparezcan en dicho archivo tengan al menos los siguientes atributos: Type, Transport Protocol, Aggregated Event Count, Priority, Agent Severity, Device Event Category, Device Action, Device Vendor, Attacker Address, Attacker Port, Attacker Geo Country Name, Target Address, Target Translated Address, Target Port, Target Service Name, Target Geo Location Info, Target Geo Country Name, Request Url, Device Custom String1, Device Custom String3, Device Custom String4. 
-2. 
+
 ![Imagen 1](http://i68.tinypic.com/2f04t43.png)
+
 2. Una vez seleccionado el archivo el programa pregunta qué delimitador tiene el archivo csv, en este caso será un “;”. 
 ![](http://i64.tinypic.com/33w5s0i.png)
 3. Hacemos clic en el botón analizar, nos dirá las instancias que conoce y que desconoce. Las instancias desconocidas se guardarán en el archivo “unknownInstances.csv” ubicado en la carpeta de instalación del programa. 
