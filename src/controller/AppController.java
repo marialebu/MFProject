@@ -16,7 +16,9 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.text.DecimalFormat;
 import java.text.MessageFormat;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -36,7 +38,7 @@ import weka.core.converters.ConverterUtils;
 public class AppController {
 
     private final String CONFIGURATIONFILENAME = "/configurations/config.cfg";
-    private final String Q1MODEL = "q1model.model";
+    private final String Q1MODEL = "q1model";
     private final String WEKAFILENAME="wekaFile.arff"; 
     Properties prop;
     InputStream input;
@@ -51,7 +53,10 @@ public class AppController {
         System.out.println(getProperty("Q1Attributes"));
         processor = new FileProcessor();
     }
-
+    
+    /**
+     * This function initializate the application. 
+     */
     private void loadInitialConfiguration() {
         prop = new Properties();
         input = null;
@@ -67,9 +72,15 @@ public class AppController {
         String value = prop.getProperty(key);
         return value;
     }
-
+    
+    /**
+     * This function translates de CSV file to an ARFF file. 
+     * @param model Question to answer 
+     * @param fileName CSV file with the events. 
+     * @throws FileNotFoundException
+     * @throws ClassNotFoundException 
+     */
     public void translateDocument(String model, String fileName) throws FileNotFoundException, ClassNotFoundException {
-
         if (model.equals("Q1")) {
             try {
                 String[] headers = getProperty(model + "Attributes").split(separator);
@@ -86,11 +97,17 @@ public class AppController {
 
         }
     }
+    /**
+     * This function uses WEKA Library to analize the translated events from the WEKA File. 
+     * @return A String with the result of the analysis.  
+     * @throws Exception
+     */
 
     public String analize() throws Exception{
         DecimalFormat df = new DecimalFormat("0.0000"); 
         StringBuilder builder = new StringBuilder();
-        KStar kstar = (KStar)SerializationHelper.read(Q1MODEL); 
+        StringBuilder suspiciousEvents =  new StringBuilder();
+        KStar kstar = (KStar)SerializationHelper.read(Q1MODEL+".model"); 
         ConverterUtils.DataSource dataSource = new ConverterUtils.DataSource(WEKAFILENAME);
         Instances instances = dataSource.getDataSet(); 
         instances.setClassIndex(instances.numAttributes()-1);
@@ -98,6 +115,8 @@ public class AppController {
         double[] probabilities;
         long countTrue = 0;
         long countFalse = 0;
+        suspiciousEvents.append("===========Evento Sospechoso=================="+"\n"); 
+        suspiciousEvents.append(String.join("\t", processor.originalHeaders)+"\n");
         builder.append("Event ID:\tPredicción:\tProbabilidad:+\n");
         for(int i =0; i <instances.numInstances(); i++){
             actualValue= instances.instance(i).classValue(); 
@@ -110,6 +129,10 @@ public class AppController {
             builder.append("\n"); 
             if (Double.compare(prediction, 0)==0) {
                 countTrue++;
+                String eventLine =  processor.getEventByFileNumber(i+1);
+                String[] line = eventLine.split(FileProcessor.DELIMITER);
+                String event = String.join("\t", line); 
+                suspiciousEvents.append(event+"\n"); 
             }else if(Double.compare(prediction, 1)==0){
                 countFalse++;
             }
@@ -123,10 +146,16 @@ public class AppController {
         builder.append("Número de instancias no sospechosas: ");
         builder.append(countFalse);
         builder.append("\n");
+        builder.append(suspiciousEvents.toString()); 
         
         return builder.toString();
     }
-
+    
+    /**
+     * This function uses WEKA library to train a new model, saving the model generated.  
+     * @param fileName
+     * @param model 
+     */
     public void translateTraining(String fileName, String model) {
         processor = new FileProcessor();
         try {
@@ -139,10 +168,17 @@ public class AppController {
         }
 
     }
-
+    
+    
+    /**
+     * This function uses the WEKA Library to retrain the model
+     * @return The result of the retraining. 
+     * @throws Exception 
+     */
     public String retrain() throws Exception {
         StringBuilder results = new StringBuilder();
         try {
+            copyModel();
             BufferedReader reader = null;
             reader = new BufferedReader(new FileReader(FileProcessor.WEKATRAININGFILE));
             Instances instances = new Instances(reader);
@@ -164,21 +200,36 @@ public class AppController {
             results.append(eval.toMatrixString());
             results.append(eval.toClassDetailsString());
             results.append("AUC = " + eval.areaUnderROC(1));
-            weka.core.SerializationHelper.write(Q1MODEL, kStar);
+            weka.core.SerializationHelper.write(Q1MODEL+".model", kStar);
         } catch (IOException ex) {
             Logger.getLogger(AppController.class.getName()).log(Level.SEVERE, null, ex);
-        }
+        } 
         return results.toString();
     }
-
+    
+    /**
+     * Gets the number of known instances. 
+     * @return A number that represents the known instances.
+     */
     public int getKnownInstances() {
         return processor.getKnown();
     }
-
+    
+    /**
+     * Gets the number of unknown instances. 
+     * @return A number that represents the unknown instances.
+     */
     public int getUnknownInstances() {
         return processor.getUnknown();
     }
-
+    
+    /**
+     * Formats the string
+     * @param instanceNumber File number
+     * @param prediction number with the prediction 
+     * @param probabilities Probabillity 
+     * @return 
+     */
     private String prepareString(int instanceNumber, double prediction, double[] probabilities) {
         StringBuilder builder = new StringBuilder();
         builder.append("------------------------------------------------------------------------------------\n");
@@ -187,8 +238,24 @@ public class AppController {
         return builder.toString();
     }
     
+    /**
+     * Changes the event column delimiter 
+     * @param delimiter String with the delimiter symbol
+     */
     public void changeDelimiter(String delimiter){
             FileProcessor.DELIMITER = delimiter.trim(); 
+    }
+
+    private void copyModel() {
+        try {
+            SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+            KStar kstar = (KStar)SerializationHelper.read(Q1MODEL+".model");
+            weka.core.SerializationHelper.write(Q1MODEL+format.format(new Date())+".model", kstar);
+        } catch (FileNotFoundException ex) {
+            System.out.println("Not existent model");
+        } catch (Exception ex) {
+            Logger.getLogger(AppController.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     

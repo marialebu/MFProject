@@ -47,6 +47,7 @@ public class FileProcessor {
     private BufferedWriter bw;
     private int known = 0;
     private int unknown = 0;
+    private HashMap<Integer, String> fileLines= new HashMap<Integer, String> (); 
 
     static HashMap<String, HashMap<String, Integer>> generalInformation;
 
@@ -59,7 +60,12 @@ public class FileProcessor {
     public static String DELIMITER = ";";
 
     private static final String WEKA_DELIMITER = ",";
-
+    
+    /**
+     * Prepares the file for training a model. 
+     * @param filePath Path of the training file. 
+     * @throws IOException 
+     */
     public void wekaFileTraining(String filePath) throws IOException {
         try {
             loadData();
@@ -78,6 +84,10 @@ public class FileProcessor {
         }
     }
 
+    /**
+     * Prepares the ARFF file for analysis. 
+     * @throws IOException 
+     */
     private void prepareWekaFile() throws IOException {
         writer.write("% 1. Title: Events\n");
         writer.write("% \n");
@@ -108,7 +118,12 @@ public class FileProcessor {
         }
         ;
     }
-
+    
+    /**
+     * Loads the ARFF events 
+     * @throws FileNotFoundException
+     * @throws IOException 
+     */
     private void loadData() throws FileNotFoundException, IOException {
         br = new BufferedReader(new FileReader(WEKATRAININGFILE));
         String line = br.readLine();
@@ -125,7 +140,15 @@ public class FileProcessor {
         }
         br.close();
     }
-
+    
+    /**
+     * Initializes the data and files for the translate process. 
+     * @param filePath File with the events 
+     * @throws FileNotFoundException
+     * @throws UnsupportedEncodingException
+     * @throws IOException
+     * @throws ClassNotFoundException 
+     */
     public void wekaFile(String filePath) throws FileNotFoundException, UnsupportedEncodingException, IOException, ClassNotFoundException {
         try {
             ObjectInputStream in = new ObjectInputStream(new FileInputStream("outTraduction.bin"));
@@ -141,8 +164,22 @@ public class FileProcessor {
         writerUnknown = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(UNKNOWNFILE), "utf-8"));
         prepareWekaFile();
     }
-
+    
+    /**
+     * Gets the original event line.
+     * @param fileNumber Number of the event. 
+     * @return The line with the original event. 
+     */
+    public String getEventByFileNumber(int fileNumber){
+        return fileLines.get(fileNumber); 
+    }
+    
+    /**
+     * This function translates the CSV file to an ARFF file. 
+     * @throws IOException 
+     */
     public void openFile() throws IOException {
+        fileLines = new HashMap<Integer, String>();
         addHeaders();
         String[] linea;
         StringBuffer newLine;
@@ -157,10 +194,7 @@ public class FileProcessor {
             }
             knownline = true;
             linea = line.split(DELIMITER);
-            //System.out.println("ARRAY " + Arrays.toString(linea) + " " + linea.length);
             newLine = new StringBuffer();
-            //System.out.println("LINE: " + count);
-           // System.out.println("LINElog: " + line);
             for (int i = 0; i < headers.length && knownline; i++) {
                 try{
                     int originalHeaderIndex = originalIndex[i];
@@ -168,7 +202,6 @@ public class FileProcessor {
                     linea_i = new String(linea_i.getBytes("ISO-8859-1"));
                     HashMap<String, Integer> map = generalInformation.get(concat(headers[i]));
                 if (map != null) {
-
                     String name = concat(headers[i]);
                     if (numerics.contains(name)) {
                         map.put(linea_i, Integer.parseInt(linea_i));
@@ -179,7 +212,6 @@ public class FileProcessor {
                         map.put(linea_i, Integer.parseInt(linea_i));
                     } else {
                         if (!map.containsKey(linea_i)) {
-                            //map.put(linea_i, map.size());
                             knownline = false;
                         }
                     }
@@ -192,15 +224,14 @@ public class FileProcessor {
                     e.printStackTrace();
                     System.out.println("");
                 }
-                
             }
             if (knownline) {
                 setKnown(getKnown() + 1);
                 lines.append(newLine.toString());
+                fileLines.put(getKnown(), line); 
             } else {
                 setUnknown(getUnknown() + 1);
                 writerUnknown.write(line + "\n");
-                //System.out.println(line);
             }
             counterHeaders = 0;
             line = br.readLine();
@@ -212,7 +243,6 @@ public class FileProcessor {
                 writer.write("@ATTRIBUTE " + concat(s) + " NUMERIC\n");
             } else {
                 HashMap<String, Integer> map = generalInformation.get(name);
-                //writer.write("@ATTRIBUTE " + concat(s) + " NUMERIC\n");
                 writer.write("@ATTRIBUTE " + concat(s) + " " + toList(map) + "\n");
             }
         }
@@ -224,7 +254,12 @@ public class FileProcessor {
         writer.close();
         writerUnknown.close();
     }
-
+    
+    /**
+     * Translates the file for the analysis or training process. 
+     * @return The translated event lines. 
+     * @throws IOException 
+     */
     private StringBuilder translateNewFile() throws IOException {
         String[] linea;
         StringBuffer newLine;
@@ -270,7 +305,12 @@ public class FileProcessor {
         }
         return lines;
     }
-
+    
+    /**
+     * Writes the ARFF file. 
+     * @param lines An StrinBuilder with the translated lines. 
+     * @throws IOException 
+     */
     private void writeFile(StringBuilder lines) throws IOException {
         for (int i = 0; i < headers.length; i++) {
             String s = headers[i];
@@ -365,5 +405,12 @@ public class FileProcessor {
         }
         System.out.println(builder.toString());
         return builder.toString();
+    }
+
+    /**
+     * @return the fileLines
+     */
+    public HashMap<Integer, String> getFileLines() {
+        return fileLines;
     }
 }
